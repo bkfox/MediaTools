@@ -15,8 +15,10 @@ namespace MediaTools.Core.Actions {
         public bool UseShell {get; set; } = false;
 
         public ExecAction(string name, string? program, string? args=null, string? description=null)
-            : base(name, description)
+            : base(name)
         {
+            if(description != null)
+                Description = description;
             Program = program;
             Args = args;
         }
@@ -58,7 +60,6 @@ namespace MediaTools.Core.Actions {
     {
         public delegate string DataGetter(ref Context app, ref Command command);
 
-        public string Name = ">>";
         public DataGetter GetData;
 
         public EditRunAction(string name, DataGetter getData, string? program, string? programArgs=null, string? description=null)

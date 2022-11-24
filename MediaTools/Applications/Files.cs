@@ -3,13 +3,12 @@
 /// </summary>
 namespace MediaTools.Files {
     using MediaTools.Core;
-    using Mono.Options;
 
-    public class FilesContext : Context {
+    public class FilesContext : Context<FilesContext> {
         /// <summary>
         /// Selected files path.
         /// </summary>
-        SortedSet<string> Files;
+        public SortedSet<string> Files;
 
         FilesContext(IRuntime<FilesContext> runtime)
             : base(runtime)
@@ -18,10 +17,10 @@ namespace MediaTools.Files {
         }
     }
 
-    public class SelectAction : Action<FilesContext> {
-        protected string Name = "select";
-        protected string Description = "Select multiple files to work on.";
-        protected Arguments? Arguments = new Arguments(new []{
+    public class SelectAction : ArguedAction<FilesContext> {
+        public override string Name {get;set;} = "select";
+        public override string Description {get;set;} = "Select multiple files to work on.";
+        public override Arguments Arguments {get;set;} = new Arguments(new IArgument[]{
             new Argument<string>() { Name="FILES", Attribute="Files", Many=true},
             new Argument<bool>() { Name="-r|--reset", Attribute="Reset"},
             new Argument<bool>() { Name="-p|--print", Attribute="Print",
@@ -30,9 +29,9 @@ namespace MediaTools.Files {
 
         record Options(bool Reset = false, List<string>? Files = null, bool Print=false);
 
-        public void Call(Context context, ref Command command) {
+        public override void Call(FilesContext context, ref Command command) {
             var options = new Options();
-            Arguments.Parse(options, command.args);
+            Arguments.Parse(ref options, command.Args);
             if(options.Reset)
                 context.Files.Clear();
             if(options.Files != null)
@@ -45,10 +44,10 @@ namespace MediaTools.Files {
         }
     }
 
-    public class MoveAction : Action<FilesContext> {
-        protected string Name {get;set;} = "mv";
-        protected string Description = "Move files to target directory";
-        protected public Arguments? Arguments = new Arguments(new []{
+    public class MoveAction : ArguedAction<FilesContext> {
+        public override string Name {get;set;} = "mv";
+        public override string Description {get;set;} = "Move files to target directory";
+        public override Arguments Arguments {get;set;} = new Arguments(new IArgument[]{
             new Argument<string>() { Name="FILES", Attribute="Files", Many=true, Help="Input files"},
             new Argument<string>() { Name="-t|--target", Attribute="Reset", Help="Target directory"},
             new Argument<bool>() { Name="-s|--use-selection", Attribute="UseSelect",

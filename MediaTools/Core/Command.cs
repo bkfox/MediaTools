@@ -49,7 +49,7 @@ namespace MediaTools.Core {
         /// <summary>
         /// Read command values from input string.
         /// </summary>
-        void FromString(string input) {
+        protected void FromString(string input) {
             Name = "";
             Args.Clear();
 

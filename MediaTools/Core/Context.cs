@@ -4,10 +4,12 @@ namespace MediaTools.Core {
         object GetRuntime();
     }
 
-    public class Context : IContext {
-        IRuntime<Context> Runtime {get; set;}
+    public class Context<C> : IContext
+        where C: IContext
+    {
+        IRuntime<C> Runtime {get; set;}
 
-        public Context(IRuntime<Context> runtime) {
+        public Context(IRuntime<C> runtime) {
             Runtime = runtime;
         }
 

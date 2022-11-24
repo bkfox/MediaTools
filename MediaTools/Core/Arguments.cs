@@ -1,8 +1,9 @@
 namespace MediaTools.Core {
     using System;
+    using System.Collections;
     using System.Collections.Generic;
 
-    public class Arguments
+    public class Arguments : IEnumerable<IArgument>
     {
         SortedDictionary<string, IArgument> Mapping;
         IArgument? Default;
@@ -20,6 +21,20 @@ namespace MediaTools.Core {
         {
             Add(arguments);
         }
+
+        public Arguments(IArgument[] arguments)
+            : this()
+        {
+            Add(arguments);
+        }
+
+        /*public static Arguments FromOptions<T>() {
+            var fields = typeof(T).GetFields();
+            var args = fields.Select(x => Attribute.GetCustomAttribute(x, typeof(ArgumentAttribute)));
+            foreach(var field in fields) {
+                
+            }
+        }*/
 
         public void Add<T>(T argument)
             where T: IArgument
@@ -51,7 +66,7 @@ namespace MediaTools.Core {
         /// <summary>
         /// Register multiple arguments at once.
         /// </summary>
-        public Add(IEnumerable<IArgument> arguments) {
+        public void Add(IEnumerable<IArgument> arguments) {
             foreach(var arg in arguments)
                 Add(arg);
         }
@@ -59,21 +74,24 @@ namespace MediaTools.Core {
         /// <summary>
         /// Parse input argument string iterable and assign values to target object.
         /// </summary>
-        public void Parse<Target>(out Target target, IEnumerable<string> args)
+        public void Parse<Target>(ref Target target, List<string> args)
         {
-            IArgument? current = null;
-            int (i, step) = (0, 1);
-            while(i < args.Count) {
+            int i = 0;
+            while(i < args.Count()) {
                 var arg = args[i];
-                IArgument? mapping = (arg[0] == "-") ? Mapping[arg] : Default;
+                IArgument? mapping = (arg[0] == '-') ? Mapping[arg] : Default;
                 if(mapping == null)
-                    throw KeyNotFoundException($"Invalid argument '{arg}'");
+                    throw new KeyNotFoundException($"Invalid argument '{arg}'");
                 if(arg[0] == '-')
                     i++;
 
                 object? value = null;
-                var property = typeof(target).GetProperty(mapping.GetAttribute());
-                if(mapping.GetType() != property.PropertyType)
+                var field = typeof(Target).GetField(mapping.GetAttribute());
+                if(field == null) {
+                    i++;
+                    continue;
+                }
+                if(mapping.GetValueType() != field.FieldType)
                     throw new NotSupportedException(
                         "Mapping and target property are not of the same type for " +
                         " argument '{arg}'");
@@ -81,17 +99,26 @@ namespace MediaTools.Core {
                 if(!mapping.ExpectValue())
                     value = (object)true;
                 else if(!mapping.ExpectMany()) {
-                    value = mapping.Parse(args[i+1]);
+                    value = mapping.Parse(args[i]);
                     i++;
                 }
                 else {
-                    value = property.GetValue(target, null);
+                    value = field.GetValue(target);
                     if(value is null)
                         value = mapping.CreateList();
-                    i += mapping.ParseList(args, i, value);
+                    var count = mapping.ParseList(args, i, ref value);
+                    i += count > 0 ? count : 1;
                 }
-                property.SetValue(target, value);
+                field.SetValue(target, value);
             }
+        }
+
+        public IEnumerator<IArgument> GetEnumerator() {
+            return this.Mapping.Values.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() {
+            return this.GetEnumerator();
         }
     }
 }
