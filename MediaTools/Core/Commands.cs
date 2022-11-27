@@ -6,8 +6,21 @@ namespace MediaTools.Core {
     using YamlDotNet.Serialization.NamingConventions;
 
     public class Commands : IEnumerable<Command> {
-        [YamlMemberAttribute(Alias="run", SerializeAs=typeof(String))]
-        List<Command> Items;
+        /// <summary>Optional name of command set.</summary>
+        public string? Name;
+
+        /// <summary>List of commands to execute, as FIFO.</summary>
+        public List<Command> Items;
+
+        // FIXME: this is a hack to avoid having to implement YamlDotNet interfaces
+        //        -> lack of documentation
+        [YamlMemberAttribute(Alias="run")]
+        public List<string>? ItemsInput;
+
+        /// <summary>Deserializer used to read Commands</summary>
+        static public IDeserializer Deserializer = new DeserializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
 
         public Commands() {
             Items = new List<Command>();
@@ -17,12 +30,13 @@ namespace MediaTools.Core {
             Items = items;
         }
 
-        /// Read YAML commands string
+        /// <summary>Read YAML commands string</summary>
         static public Commands FromYAML(string input) {
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(UnderscoredNamingConvention.Instance)
-                .Build();
-            return deserializer.Deserialize<Commands>(input);
+            var commands = Deserializer.Deserialize<Commands>(input);
+            if(commands.ItemsInput != null)
+                commands.Items = commands.ItemsInput.Select(r => new Command(r))
+                                    .ToList();
+            return commands;
             /*Commands commands = new Commands();
             commands.ReadYAML(input);
             return commands;

@@ -11,38 +11,52 @@ namespace MediaTools.Tests.Core {
         Argument<int> Arg;
 
         public TestArgument() {
-            Arg = new Argument<int>(Name, Attr, true, Help);
+            Arg = new Argument<int>(Name, Attr, -1, Help);
         }
 
         [Fact]
         public void TestGetters() {
             Assert.Equal(Arg.GetName(), Name);
             Assert.Equal(Arg.GetAttribute(), Attr);
-            Assert.Equal(Arg.ExpectMany(), true);
+            Assert.Equal(Arg.GetCount(), -1);
             Assert.Equal(Arg.GetHelp(), Help);
             Assert.Equal(Arg.GetValueType(), typeof(List<int>));
 
-            Arg.Many = false;
+            Arg.Count = 0;
             Assert.Equal(Arg.GetValueType(), typeof(int));
         }
 
         [Fact]
-        public void TestCreateList() {
-            var list = Arg.CreateList();
-            Assert.True(list is List<int>);
+        public void TestReadFlag() {
+            var arg = new Argument<bool>("arg", "arg");
+            var input = new string[]{"-a"};
+            var target = (object)false;
+            var count = arg.Read(input, 0, ref target);
+            Assert.Equal(0, count);
+            Assert.True((bool)target);
         }
 
         [Fact]
-        public void TestParseList() {
+        public void TestReadValue() {
+            var arg = new Argument<int>("arg", "arg");
+            var input = new string[]{"-a", "13"};
+            var target = (object)0;
+            var count = arg.Read(input, 1, ref target);
+            Assert.Equal(1, count);
+            Assert.Equal((int)target, 13);
+        }
+
+        [Fact]
+        public void TestReadList() {
             var input = new string[]{"-a", "13", "14", "15", "-b", "13"};
             var expected = new List<int>{13,14,15};
 
-            var target = Arg.CreateList();
-            var count = Arg.ParseList(input, 1, ref target);
+            object target = new List<int>();
+            var count = Arg.Read(input, 1, ref target);
 
             var list = (List<int>)target;
-            Assert.Equal(list.Count, count);
-            Assert.Equal(list, expected);
+            Assert.Equal(count, list.Count);
+            Assert.Equal(expected, list);
         }
     }
 }

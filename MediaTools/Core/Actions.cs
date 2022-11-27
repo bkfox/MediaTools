@@ -8,7 +8,6 @@ namespace MediaTools.Core.Actions {
 
     /// Execute an external program.
     class ExecAction<Context> : Action<Context>
-        where Context: IContext
     {
         public string? Program {get; set;}
         public string? Args {get; set;}
@@ -42,7 +41,8 @@ namespace MediaTools.Core.Actions {
             return process;
         }
 
-        public override void Call(Context context, ref Command command) {
+        public override void Call(ref IRuntime<Context> runtime, ref Context context, ref Command command)
+        {
             var (program, args) = GetProgram();
             var process = GetProcess(program, args);
             process.Start();
@@ -56,7 +56,6 @@ namespace MediaTools.Core.Actions {
     /// - Launch user editor
     /// - Call subsequent actions from Application
     class EditRunAction<Context> : ExecAction<Context>
-        where Context: IContext
     {
         public delegate string DataGetter(ref Context app, ref Command command);
 
@@ -74,7 +73,8 @@ namespace MediaTools.Core.Actions {
             return base.GetProgram(defaultProgram);
         }
 
-        public override void Call(Context context, ref Command command) {
+        public override void Call(ref IRuntime<Context> runtime, ref Context context, ref Command command)
+        {
             var path = Path.Combine(
                 Path.GetTempPath(),
                 Path.ChangeExtension(Guid.NewGuid().ToString(), "yaml")
@@ -94,8 +94,7 @@ namespace MediaTools.Core.Actions {
             // read data and execute
             var result = File.ReadAllText(path);
             Commands commands = Commands.FromYAML(result);
-
-            ((IAction<Context>)this).GetRuntime(context).Run(commands);
+            runtime.Run(context, commands);
         }
     }
 

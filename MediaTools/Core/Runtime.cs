@@ -4,7 +4,6 @@ namespace MediaTools.Core
     using System.Collections.Generic;
 
     public interface IRuntime<Context>
-        where Context: IContext
     {
         public Context GetContext();
         public void Run(Context context, Command command);
@@ -25,15 +24,14 @@ namespace MediaTools.Core
     /// Provide runtime machine for commands, executing registered actions.
     /// </summary>
     public abstract class Runtime<Context> : IRuntime<Context>
-        where Context: IContext
     {
         public delegate Context ContextBuilder(Runtime<Context> runtime);
 
-        public string Label = "run";
-        public string Name = "Run";
-        public string Description = "Run set of commands";
+        public string Label {get;set;} = "Run";
+        public string Name {get;set;} = "run";
+        public string Description {get;set;} = "Run set of commands";
 
-        public ContextBuilder? CreateContext;
+        public ContextBuilder? CreateContext {get;set;}
         public Dictionary<string, IAction<Context>> Actions = new Dictionary<string, IAction<Context>>();
 
 
@@ -100,8 +98,8 @@ namespace MediaTools.Core
             var action = Actions[command.Name];
             if(action == null)
                 throw new KeyNotFoundException($"unknown action '{command.Name}'.");
-            var self = this;
-            action.Call(context, ref command);
+            var self = (IRuntime<Context>)this;
+            action.Call(ref self, ref context, ref command);
         }
 
         /// <summary>

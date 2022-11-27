@@ -10,7 +10,7 @@ namespace MediaTools.Core {
     public struct Command {
         /// <summary>Regular expression used to parse user input string</summary>
         static Regex RegWords = new Regex(
-                @"\s*(""(?<str>(\""|[^""])+)""|(?<expr>(\\\s|[^\s])+))(\s+|\s*$)?",
+                @"\s*(""(?<str>(\\""|[^""])+)""|(?<expr>(\\\s|[^\s])+))(\s+|\s*$)?",
                 RegexOptions.Compiled);
 
         /// <summary>Command name</summary>
@@ -33,7 +33,7 @@ namespace MediaTools.Core {
         /// <summary>
         /// Instanciate command using provided name and args.
         /// </summary>
-        Command(string name, List<string> args)
+        public Command(string name, List<string> args)
         {
             Name = name;
             Args = args;
@@ -42,14 +42,14 @@ namespace MediaTools.Core {
         /// <summary>
         /// Instanciate command reading from input string.
         /// </summary>
-        Command(string input) : this() {
-            FromString(input);
+        public Command(string input) : this() {
+            ReadString(input);
         }
 
         /// <summary>
         /// Read command values from input string.
         /// </summary>
-        protected void FromString(string input) {
+        void ReadString(string input) {
             Name = "";
             Args.Clear();
 
@@ -84,6 +84,17 @@ namespace MediaTools.Core {
                 _ => new List<string>(),
             };
             return new Command(name, args);
+        }
+
+        /// <summary>Return Command as string</summary>
+        public string AsString() {
+            var str = Name + " ";
+            foreach(var arg in Args)
+                if(arg.Contains(" "))
+                    str += $"\"{arg.Replace("\"", "\\\"")}\" ";
+                else
+                    str += $"{arg} ";
+            return str;
         }
     }
 }

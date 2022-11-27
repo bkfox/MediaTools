@@ -5,15 +5,16 @@ namespace MediaTools.Core {
 
     public class Arguments : IEnumerable<IArgument>
     {
-        SortedDictionary<string, IArgument> Mapping;
-        IArgument? Default;
+        SortedDictionary<string, IArgument> Named;
+        List<IArgument> Positional;
 
         public int Count {
-            get => Mapping.Count;
+            get => Named.Count;
         }
 
         public Arguments() {
-            Mapping = new SortedDictionary<string, IArgument>();
+            Named = new SortedDictionary<string, IArgument>();
+            Positional = new List<IArgument>();
         }
 
         public Arguments(IEnumerable<IArgument> arguments)
@@ -49,17 +50,11 @@ namespace MediaTools.Core {
             var keys = argument.GetName().Split("|");
             foreach(var key in keys) {
                 if(key.StartsWith("-"))
-                    Mapping.Add(key, argument);
-                else if(Default == null) {
-                    if(!argument.ExpectValue())
-                        throw new ArgumentException($"Default argument must not be a flag" +
-                                                     "for argument ({argument.GetName()})");
-                    Default = argument;
-                }
+                    Named.Add(key, argument);
+                else if(argument.GetCount() == 0)
+                    throw new ArgumentException("Positional arguments must accept at least one value.");
                 else
-                    throw new ArgumentException(
-                        $"Default argument already passed (default={Default.GetName()}, " +
-                        $"{argument.GetName()})");
+                    Positional.Add(argument);
             }
         }
 
@@ -74,47 +69,73 @@ namespace MediaTools.Core {
         /// <summary>
         /// Parse input argument string iterable and assign values to target object.
         /// </summary>
-        public void Parse<Target>(ref Target target, List<string> args)
+        public void Read<Options>(ref Options options, List<string> args)
         {
             int i = 0;
+            int posIndex = 0;
             while(i < args.Count()) {
+                Console.WriteLine($"- loop {i} {args[i]}");
                 var arg = args[i];
-                IArgument? mapping = (arg[0] == '-') ? Mapping[arg] : Default;
+                (IArgument? mapping, bool isNamed) = arg[0] == '-' ? (Named[arg], true)
+                        : posIndex < Positional.Count ? (Positional[posIndex], false)
+                        : (null, false);
                 if(mapping == null)
                     throw new KeyNotFoundException($"Invalid argument '{arg}'");
-                if(arg[0] == '-')
+                if(isNamed)
                     i++;
 
-                object? value = null;
-                var field = typeof(Target).GetField(mapping.GetAttribute());
-                if(field == null) {
-                    i++;
-                    continue;
-                }
-                if(mapping.GetValueType() != field.FieldType)
+                var field = typeof(Options).GetField(mapping.GetAttribute());
+                if(field == null)
+                    throw new FieldAccessException(
+                        $"Field '{mapping.GetAttribute()}' not found on provided " +
+                         "options object.");
+    
+                var castAllowed = this._CastAllowed(ref field, ref mapping);
+                if(!castAllowed)
                     throw new NotSupportedException(
-                        "Mapping and target property are not of the same type for " +
-                        " argument '{arg}'");
+                        "Mapping and options' field must be of the same type for " +
+                        $"argument '{arg}' ({field.FieldType} vs {mapping.GetValueType()})");
 
-                if(!mapping.ExpectValue())
-                    value = (object)true;
-                else if(!mapping.ExpectMany()) {
-                    value = mapping.Parse(args[i]);
-                    i++;
-                }
-                else {
-                    value = field.GetValue(target);
-                    if(value is null)
+                var argCount = mapping.GetCount();
+                var value = field.GetValue(options);
+                if(value == null) {
+                    if(argCount == 1)
+                        throw new NotSupportedException(
+                            "Option MUST provide a non-null value for field " +
+                            $"{mapping.GetAttribute()}");
+                    else if(argCount == 0)
+                        continue;
+                    else
                         value = mapping.CreateList();
-                    var count = mapping.ParseList(args, i, ref value);
-                    i += count > 0 ? count : 1;
                 }
-                field.SetValue(target, value);
+
+                var count = mapping.Read(args, i, ref value);
+                field.SetValue(options, value);
+
+                i += count;
+                if(!isNamed && (!mapping.Many() || mapping.ListIsFull(value)))
+                    posIndex++;
             }
         }
 
+        protected bool _CastAllowed(ref System.Reflection.FieldInfo field, ref IArgument mapping) {
+            var nullType = typeof(Nullable<>);
+            var type = field.FieldType;
+            var fieldType = type.IsGenericType && type.GetGenericTypeDefinition() == nullType
+                            ? Nullable.GetUnderlyingType(type) : type;
+            if(fieldType == null)
+                throw new ArgumentNullException("field type is null");
+
+            type = mapping.GetValueType();
+            var mappingType = type.IsGenericType && type.GetGenericTypeDefinition() == nullType
+                              ? Nullable.GetUnderlyingType(type) : type;
+            if(mappingType == null)
+                throw new ArgumentNullException("mapping type is null");
+            return mappingType == fieldType;
+        }
+
         public IEnumerator<IArgument> GetEnumerator() {
-            return this.Mapping.Values.GetEnumerator();
+            return this.Named.Values.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
