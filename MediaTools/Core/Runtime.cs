@@ -106,7 +106,7 @@ namespace MediaTools.Core
         /// Run command set
         /// </summary>
         public virtual void Run(Context context, Commands commands) {
-            foreach(var command in commands)
+            foreach(var command in commands.Items)
                 Run(context, command);
         }
     }

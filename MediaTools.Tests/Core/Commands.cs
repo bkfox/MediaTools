@@ -18,12 +18,15 @@ namespace MediaTools.Tests.Core {
         }
 
         [Fact]
-        public void TestFromYAML() {
-            var commands = Commands.FromYAML(Schema);
-            Assert.Equal("commands_1", commands.Name);
-            Assert.Equal(CommandsItems.Count, commands.Items.Count);
-            for(var i=0; i < CommandsItems.Count; i++)
-                Assert.Equal(CommandsItems[i].AsString(), commands.Items[i].AsString());
+        public void TestToFromYAML() {
+            var commands = new Commands(CommandsItems);
+            var schema = commands.ToYAML();
+            var result = Commands.FromYAML(schema);
+
+            Assert.Equal(commands.Name, result.Name);
+            Assert.Equal(commands.Items.Count, result.Items.Count);
+            for(var i=0; i < commands.Items.Count; i++)
+                Assert.Equal(commands.Items[i].AsString(), result.Items[i].AsString());
         }
     }
 }

@@ -5,17 +5,26 @@ namespace MediaTools.Core {
     using YamlDotNet.Serialization;
     using YamlDotNet.Serialization.NamingConventions;
 
-    public class Commands : IEnumerable<Command> {
+    public class Commands /*: IEnumerable<Command> */ {
         /// <summary>Optional name of command set.</summary>
-        public string? Name;
+        public string? Name {get; set;}
+
+        /// <summary>Required runtime by name.</summary>
+        public string? Runtime {get; set;}
 
         /// <summary>List of commands to execute, as FIFO.</summary>
+        [YamlIgnore]
         public List<Command> Items;
 
         // FIXME: this is a hack to avoid having to implement YamlDotNet interfaces
         //        -> lack of documentation
         [YamlMemberAttribute(Alias="run")]
-        public List<string>? ItemsInput;
+        public List<string>? ItemsInput {get; set;}
+
+        /// <summary>Serializer used to write Commands</summary>
+        static public ISerializer Serializer = new SerializerBuilder()
+            .WithNamingConvention(UnderscoredNamingConvention.Instance)
+            .Build();
 
         /// <summary>Deserializer used to read Commands</summary>
         static public IDeserializer Deserializer = new DeserializerBuilder()
@@ -26,8 +35,8 @@ namespace MediaTools.Core {
             Items = new List<Command>();
         }
 
-        public Commands(List<Command> items) {
-            Items = items;
+        public Commands(IEnumerable<Command> items) {
+            Items = items.ToList();
         }
 
         /// <summary>Read YAML commands string</summary>
@@ -36,33 +45,26 @@ namespace MediaTools.Core {
             if(commands.ItemsInput != null)
                 commands.Items = commands.ItemsInput.Select(r => new Command(r))
                                     .ToList();
+            commands.ItemsInput = null;
             return commands;
-            /*Commands commands = new Commands();
-            commands.ReadYAML(input);
-            return commands;
-        }
-        
-        /// Read YAML commands file
-        public void ReadYAML(string input) {
-            var deserializer = new DeserializerBuilder()
-                .WithNamingConvention(UnderscoredNamingConvention.Instance)
-                .Build();
-            var inputs = deserializer.Deserialize<Commands>(input);
-            foreach(var step in inputs) {
-                foreach(var entry in step) {
-                    var command = Command.Read(entry.Value, entry.Key);
-                    if(command != null)
-                        Items.Add((Command)command);
-                }
-            }*/
         }
 
+        public string ToYAML() {
+            ItemsInput = Items.Select(r => r.AsString()).ToList();
+            var result = Serializer.Serialize(this);
+            ItemsInput = null;
+            return result;
+        }
+
+        /*
+        // must be ignored because yaml serialization serialize this as
+        // a list.
         public IEnumerator<Command> GetEnumerator() {
             return Items.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator() {
             return this.GetEnumerator();
-        }
+        }*/
     }
 }
